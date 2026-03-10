@@ -64,6 +64,16 @@ class KeycloakLoginOptions {
   });
 }
 
+/// Options for specifying a redirect URI.
+class KeycloakRedirectUriOptions {
+  /// Specifies the uri to redirect to after login.
+  final String? redirectUri;
+
+  const KeycloakRedirectUriOptions({
+    this.redirectUri,
+  });
+}
+
 /// Options for the logout redirect.
 class KeycloakLogoutOptions {
   /// Specifies the uri to redirect to after logout.

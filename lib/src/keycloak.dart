@@ -6,10 +6,12 @@ import 'package:http/http.dart' as http;
 
 import 'keycloak_adapter.dart';
 import 'keycloak_config.dart';
+import 'keycloak_error.dart';
 import 'keycloak_init_options.dart';
 import 'keycloak_login_options.dart';
 import 'keycloak_profile.dart';
 import 'keycloak_token.dart';
+import 'keycloak_user_info.dart';
 
 /// Callback storage for managing OAuth state between redirects.
 class CallbackState {
@@ -108,14 +110,14 @@ class Keycloak {
   Map<String, KeycloakRolesData>? resourceAccess;
 
   KeycloakProfile? profile;
-  Map<String, dynamic>? userInfo;
+  KeycloakUserInfo? userInfo;
 
   Endpoints? endpoints;
 
   // Callbacks
   void Function(bool authenticated)? onReady;
   void Function()? onAuthSuccess;
-  void Function(Map<String, String>? errorData)? onAuthError;
+  void Function(KeycloakError? errorData)? onAuthError;
   void Function()? onAuthRefreshSuccess;
   void Function()? onAuthRefreshError;
   void Function()? onTokenExpired;
@@ -225,6 +227,20 @@ class Keycloak {
     }
 
     await _loadConfig();
+
+    // Process initial tokens if provided
+    if (options.token != null || options.refreshToken != null) {
+      setToken(
+        options.token,
+        options.refreshToken,
+        options.idToken,
+        options.timeSkew != null
+            ? DateTime.now().millisecondsSinceEpoch
+            : null,
+      );
+    }
+
+    _scheduleTokenExpiry();
 
     onReady?.call(authenticated);
 
@@ -410,6 +426,14 @@ class Keycloak {
     return uri.toString();
   }
 
+  /// Redirects to the Account Management Console.
+  Future<void> accountManagement() async {
+    if (_adapter == null) {
+      throw StateError('Adapter not initialized. Call init() first.');
+    }
+    return _adapter!.accountManagement();
+  }
+
   /// Returns true if the token has the given realm role.
   bool hasRealmRole(String role) {
     return realmAccess != null && realmAccess!.roles.contains(role);
@@ -459,7 +483,7 @@ class Keycloak {
   }
 
   /// Load user info from the userinfo endpoint.
-  Future<Map<String, dynamic>> loadUserInfo() async {
+  Future<KeycloakUserInfo> loadUserInfo() async {
     if (endpoints == null) {
       throw StateError('Endpoints not configured. Call init() first.');
     }
@@ -485,8 +509,9 @@ class Keycloak {
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    userInfo = json;
-    return json;
+    final info = KeycloakUserInfo.fromJson(json);
+    userInfo = info;
+    return info;
   }
 
   /// Returns true if the token has less than [minValidity] seconds
@@ -791,6 +816,20 @@ class Keycloak {
   static String _stripTrailingSlash(String url) {
     return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
   }
+
+  void _scheduleTokenExpiry() {
+    if (tokenParsed?.exp == null || timeSkew == null) return;
+
+    final expiresIn = tokenParsed!.exp! -
+        (DateTime.now().millisecondsSinceEpoch / 1000).ceil() +
+        timeSkew!;
+
+    if (expiresIn > 0) {
+      Future.delayed(Duration(seconds: expiresIn), () {
+        onTokenExpired?.call();
+      });
+    }
+  }
 }
 
 /// Default adapter that stores redirect URIs without performing
@@ -822,7 +861,7 @@ class _DefaultAdapter implements KeycloakAdapter {
   }
 
   @override
-  String redirectUri([KeycloakAccountOptions? options]) {
+  String redirectUri([KeycloakRedirectUriOptions? options]) {
     return options?.redirectUri ?? _keycloak.redirectUri ?? '';
   }
 }

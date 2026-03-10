@@ -9,5 +9,5 @@ abstract class KeycloakAdapter {
   Future<void> logout([KeycloakLogoutOptions? options]);
   Future<void> register([KeycloakRegisterOptions? options]);
   Future<void> accountManagement();
-  String redirectUri([KeycloakAccountOptions? options]);
+  String redirectUri([KeycloakRedirectUriOptions? options]);
 }
