@@ -56,7 +56,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     expect(
@@ -65,7 +65,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('no refresh token available'),
-      )),
+      ),),
     );
   });
 
@@ -74,7 +74,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -110,7 +110,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     expect(() => keycloak.isTokenExpired(), throwsA(isA<StateError>()));

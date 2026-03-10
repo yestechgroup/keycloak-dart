@@ -14,10 +14,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
-    ));
+    ),);
   });
 
   test('creates an account URL with all options', () {
@@ -53,7 +53,7 @@ void main() {
         endSessionEndpoint:
             '$authServerUrl/realms/$realm/protocol/openid-connect/logout',
       ),
-    ));
+    ),);
     await kc.init();
 
     expect(
@@ -62,7 +62,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('generic OIDC provider'),
-      )),
+      ),),
     );
   });
 }

@@ -12,11 +12,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       silentCheckSsoRedirectUri: '$appUrl/silent-check-sso.html',
-    ));
+    ),);
 
     expect(
       keycloak.silentCheckSsoRedirectUri,
@@ -29,12 +29,12 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       silentCheckSsoRedirectUri: '$appUrl/silent-check-sso.html',
       checkLoginIframe: false,
-    ));
+    ),);
 
     expect(
       keycloak.silentCheckSsoRedirectUri,
@@ -47,12 +47,12 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       silentCheckSsoRedirectUri: '$appUrl/silent-check-sso.html',
       silentCheckSsoFallback: false,
-    ));
+    ),);
 
     expect(keycloak.silentCheckSsoFallback, isFalse);
     expect(

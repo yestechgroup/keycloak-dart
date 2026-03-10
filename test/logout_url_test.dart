@@ -14,10 +14,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
-    ));
+    ),);
   });
 
   test('creates a logout URL with all options', () {
@@ -25,7 +25,7 @@ void main() {
     final logoutUrlString = keycloak.createLogoutUrl(KeycloakLogoutOptions(
       logoutMethod: 'GET',
       redirectUri: redirectUri,
-    ));
+    ),);
     final logoutUrl = Uri.parse(logoutUrlString);
 
     expect(
@@ -57,7 +57,7 @@ void main() {
     final logoutUrlString = keycloak.createLogoutUrl(KeycloakLogoutOptions(
       logoutMethod: 'POST',
       redirectUri: 'http://localhost:3000/foo/bar',
-    ));
+    ),);
     final logoutUrl = Uri.parse(logoutUrlString);
 
     expect(
@@ -78,7 +78,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     final redirectUri = 'http://localhost:3000/foo/bar';
     await kc.init(KeycloakInitOptions(redirectUri: redirectUri));
     final logoutUrlString = kc.createLogoutUrl();
@@ -92,7 +92,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init(KeycloakInitOptions(redirectUri: appUrl));
 
     // Simulate authentication by setting the idToken

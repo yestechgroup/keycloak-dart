@@ -14,10 +14,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
-    ));
+    ),);
   });
 
   test('creates a login URL with all options', () async {
@@ -33,7 +33,7 @@ void main() {
       locale: 'nl-NL nl',
       acr: Acr(values: ['foo', 'bar'], essential: false),
       acrValues: '2fa',
-    ));
+    ),);
 
     final loginUrl = Uri.parse(loginUrlString);
     expect(
@@ -108,7 +108,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     final redirectUri = 'http://localhost:3000/foo/bar';
     await kc.init(KeycloakInitOptions(redirectUri: redirectUri));
     final loginUrlString = await kc.createLoginUrl();
@@ -123,10 +123,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init(KeycloakInitOptions(
       scope: 'openid profile email',
-    ));
+    ),);
     final loginUrlString = await kc.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
 
@@ -139,10 +139,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init(KeycloakInitOptions(
       scope: 'profile email openidlike',
-    ));
+    ),);
     final loginUrlString = await kc.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
 
@@ -159,10 +159,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init(KeycloakInitOptions(
       responseMode: KeycloakResponseMode.query,
-    ));
+    ),);
     final loginUrlString = await kc.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
 
@@ -175,10 +175,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init(KeycloakInitOptions(
       flow: KeycloakFlow.implicit,
-    ));
+    ),);
     final loginUrlString = await kc.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
 

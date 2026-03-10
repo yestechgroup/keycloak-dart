@@ -11,7 +11,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init();
 
     expect(
@@ -20,7 +20,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('can only be initialized once'),
-      )),
+      ),),
     );
   });
 }

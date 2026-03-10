@@ -12,7 +12,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     expect(
@@ -21,7 +21,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('token is not set'),
-      )),
+      ),),
     );
   });
 }

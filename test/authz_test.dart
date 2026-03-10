@@ -11,7 +11,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init();
 
     final authz = KeycloakAuthorization(keycloak);
@@ -24,7 +24,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init();
 
     final authz = KeycloakAuthorization(keycloak);
@@ -40,7 +40,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init();
 
     final authz = KeycloakAuthorization(keycloak);

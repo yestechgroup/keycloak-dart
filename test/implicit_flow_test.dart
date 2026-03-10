@@ -15,12 +15,12 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       flow: KeycloakFlow.implicit,
       responseMode: KeycloakResponseMode.query,
-    ));
+    ),);
 
     // The URL is created with query response mode.
     // The server would reject this, but we test that the adapter
@@ -37,11 +37,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       flow: KeycloakFlow.implicit,
-    ));
+    ),);
 
     // Simulate authentication via implicit flow (no refresh token)
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -59,7 +59,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('no refresh token available'),
-      )),
+      ),),
     );
   });
 
@@ -68,11 +68,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       flow: KeycloakFlow.implicit,
-    ));
+    ),);
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final token = createTestToken({
@@ -96,10 +96,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       flow: KeycloakFlow.implicit,
-    ));
+    ),);
 
     expect(keycloak.flow, KeycloakFlow.implicit);
     expect(keycloak.responseType, KeycloakResponseType.idTokenToken);
@@ -110,10 +110,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       flow: KeycloakFlow.hybrid,
-    ));
+    ),);
 
     expect(keycloak.flow, KeycloakFlow.hybrid);
     expect(keycloak.responseType, KeycloakResponseType.codeIdTokenToken);

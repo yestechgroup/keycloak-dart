@@ -12,11 +12,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       scope: 'openid profile email phone',
-    ));
+    ),);
 
     final loginUrlString = await keycloak.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
@@ -32,11 +32,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       scope: 'openid profile',
-    ));
+    ),);
 
     final loginUrlString = await keycloak.createLoginUrl(
       KeycloakLoginOptions(scope: 'openid profile email phone'),

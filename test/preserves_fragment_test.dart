@@ -60,10 +60,10 @@ void main() {
       url: 'http://localhost:8080',
       realm: 'test-realm',
       clientId: 'test-client',
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: 'http://localhost:3000/#/admin/users',
-    ));
+    ),);
 
     final loginUrl = await keycloak.createLoginUrl();
     final parsed = Uri.parse(loginUrl);

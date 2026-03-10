@@ -12,7 +12,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     expect(
@@ -21,7 +21,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('token is not set'),
-      )),
+      ),),
     );
   });
 
@@ -36,7 +36,7 @@ void main() {
         endSessionEndpoint:
             '$authServerUrl/realms/$realm/protocol/openid-connect/logout',
       ),
-    ));
+    ),);
     await keycloak.init();
 
     // Even with a token, it should fail because there's no realm URL
@@ -48,7 +48,7 @@ void main() {
         (e) => e.message,
         'message',
         contains('generic OIDC provider'),
-      )),
+      ),),
     );
   });
 }

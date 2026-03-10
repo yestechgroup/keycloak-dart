@@ -14,10 +14,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
-    ));
+    ),);
   });
 
   test('creates a registration URL with all options', () async {
@@ -33,7 +33,7 @@ void main() {
       locale: 'nl-NL nl',
       acr: Acr(values: ['foo', 'bar'], essential: false),
       acrValues: '2fa',
-    ));
+    ),);
 
     final registerUrl = Uri.parse(registerUrlString);
     expect(

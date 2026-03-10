@@ -16,7 +16,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -76,7 +76,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init();
     expect(kc.hasRealmRole('user'), isFalse);
   });
@@ -86,7 +86,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await kc.init();
     expect(kc.hasResourceRole('view'), isFalse);
   });

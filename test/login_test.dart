@@ -14,10 +14,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     final authenticated = await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
-    ));
+    ),);
 
     expect(authenticated, isFalse);
     expect(keycloak.authenticated, isFalse);
@@ -28,7 +28,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -60,7 +60,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -95,7 +95,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -129,7 +129,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     var logoutCallCount = 0;
@@ -147,11 +147,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       enablePkce: false,
-    ));
+    ),);
 
     final loginUrlString = await keycloak.createLoginUrl();
     final loginUrl = Uri.parse(loginUrlString);
@@ -168,11 +168,11 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       redirectUri: appUrl,
       logoutMethod: 'POST',
-    ));
+    ),);
 
     expect(keycloak.logoutMethod, 'POST');
   });
@@ -190,7 +190,7 @@ void main() {
         userinfoEndpoint:
             '$authServerUrl/realms/$realm/protocol/openid-connect/userinfo',
       ),
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     expect(keycloak.clientId, clientId);
@@ -203,10 +203,10 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(
       onLoad: KeycloakOnLoad.loginRequired,
-    ));
+    ),);
 
     expect(keycloak.loginRequired, isTrue);
   });
@@ -216,7 +216,7 @@ void main() {
       url: authServerUrl,
       realm: realm,
       clientId: clientId,
-    ));
+    ),);
     await keycloak.init(KeycloakInitOptions(redirectUri: appUrl));
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
