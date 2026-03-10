@@ -34,18 +34,54 @@ class CallbackState {
   });
 }
 
-/// In-memory callback storage.
-class CallbackStorage {
-  final Map<String, CallbackState> _storage = {};
+/// Abstract callback storage interface.
+///
+/// Implement this to provide persistent storage (e.g. using
+/// `shared_preferences` or `flutter_secure_storage`).
+abstract class CallbackStorage {
+  void add(CallbackState state);
+  CallbackState? get(String? state);
+}
 
+/// In-memory callback storage with automatic expiry.
+///
+/// Entries expire after [ttl] (default: 1 hour).
+class InMemoryCallbackStorage implements CallbackStorage {
+  final Duration ttl;
+  final Map<String, _ExpiringEntry> _storage = {};
+
+  InMemoryCallbackStorage({this.ttl = const Duration(hours: 1)});
+
+  @override
   void add(CallbackState state) {
-    _storage[state.state] = state;
+    _clearExpired();
+    _storage[state.state] = _ExpiringEntry(
+      state: state,
+      expiresAt: DateTime.now().add(ttl),
+    );
   }
 
+  @override
   CallbackState? get(String? state) {
     if (state == null) return null;
-    return _storage.remove(state);
+    _clearExpired();
+    final entry = _storage.remove(state);
+    if (entry == null) return null;
+    if (DateTime.now().isAfter(entry.expiresAt)) return null;
+    return entry.state;
   }
+
+  void _clearExpired() {
+    final now = DateTime.now();
+    _storage.removeWhere((_, entry) => now.isAfter(entry.expiresAt));
+  }
+}
+
+class _ExpiringEntry {
+  final CallbackState state;
+  final DateTime expiresAt;
+
+  const _ExpiringEntry({required this.state, required this.expiresAt});
 }
 
 /// Result of parsing an OAuth callback URL.
@@ -165,7 +201,7 @@ class Keycloak {
 
   KeycloakAdapter? _adapter;
   bool _useNonce = true;
-  CallbackStorage _callbackStorage = CallbackStorage();
+  CallbackStorage _callbackStorage = InMemoryCallbackStorage();
   final List<Completer<bool>> _refreshQueue = [];
 
   bool didInitialize = false;
@@ -253,7 +289,7 @@ class Keycloak {
     }
 
     didInitialize = true;
-    _callbackStorage = CallbackStorage();
+    _callbackStorage = InMemoryCallbackStorage();
 
     if (options.adapter != null) {
       _adapter = options.adapter;
