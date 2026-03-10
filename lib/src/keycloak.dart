@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -9,6 +10,7 @@ import 'keycloak_config.dart';
 import 'keycloak_error.dart';
 import 'keycloak_init_options.dart';
 import 'keycloak_login_options.dart';
+import 'keycloak_network_error.dart';
 import 'keycloak_profile.dart';
 import 'keycloak_token.dart';
 import 'keycloak_user_info.dart';
@@ -46,6 +48,97 @@ class CallbackStorage {
   }
 }
 
+/// Result of parsing an OAuth callback URL.
+class OAuthCallbackParams {
+  final String? code;
+  final String? error;
+  final String? errorDescription;
+  final String? errorUri;
+  final String? state;
+  final String? sessionState;
+  final String? accessToken;
+  final String? tokenType;
+  final String? idToken;
+  final String? expiresIn;
+  final String? kcActionStatus;
+  final String? kcAction;
+  final String? iss;
+  final String? newUrl;
+  final String? redirectUri;
+  final String? storedNonce;
+  final String? prompt;
+  final String? pkceCodeVerifier;
+  final KeycloakLoginOptions? loginOptions;
+  final bool valid;
+
+  const OAuthCallbackParams({
+    this.code,
+    this.error,
+    this.errorDescription,
+    this.errorUri,
+    this.state,
+    this.sessionState,
+    this.accessToken,
+    this.tokenType,
+    this.idToken,
+    this.expiresIn,
+    this.kcActionStatus,
+    this.kcAction,
+    this.iss,
+    this.newUrl,
+    this.redirectUri,
+    this.storedNonce,
+    this.prompt,
+    this.pkceCodeVerifier,
+    this.loginOptions,
+    this.valid = false,
+  });
+
+  OAuthCallbackParams copyWith({
+    String? redirectUri,
+    String? storedNonce,
+    String? prompt,
+    String? pkceCodeVerifier,
+    String? newUrl,
+    KeycloakLoginOptions? loginOptions,
+    bool? valid,
+  }) {
+    return OAuthCallbackParams(
+      code: code,
+      error: error,
+      errorDescription: errorDescription,
+      errorUri: errorUri,
+      state: state,
+      sessionState: sessionState,
+      accessToken: accessToken,
+      tokenType: tokenType,
+      idToken: idToken,
+      expiresIn: expiresIn,
+      kcActionStatus: kcActionStatus,
+      kcAction: kcAction,
+      iss: iss,
+      newUrl: newUrl ?? this.newUrl,
+      redirectUri: redirectUri ?? this.redirectUri,
+      storedNonce: storedNonce ?? this.storedNonce,
+      prompt: prompt ?? this.prompt,
+      pkceCodeVerifier: pkceCodeVerifier ?? this.pkceCodeVerifier,
+      loginOptions: loginOptions ?? this.loginOptions,
+      valid: valid ?? this.valid,
+    );
+  }
+}
+
+/// Result of parsing callback params from a URL fragment or query string.
+class ParsedCallbackParams {
+  final String paramsString;
+  final Map<String, String> oauthParams;
+
+  const ParsedCallbackParams({
+    required this.paramsString,
+    required this.oauthParams,
+  });
+}
+
 /// Endpoints for the Keycloak server.
 class Endpoints {
   final String Function() authorize;
@@ -73,6 +166,7 @@ class Keycloak {
   KeycloakAdapter? _adapter;
   bool _useNonce = true;
   CallbackStorage _callbackStorage = CallbackStorage();
+  final List<Completer<bool>> _refreshQueue = [];
 
   bool didInitialize = false;
   bool authenticated = false;
@@ -541,6 +635,9 @@ class Keycloak {
   }
 
   /// If the token expires within [minValidity] seconds, refresh it.
+  ///
+  /// Uses a queue to coalesce concurrent refresh requests — only the first
+  /// request actually contacts the server; subsequent callers share the result.
   Future<bool> updateToken([int minValidity = 5]) async {
     if (refreshToken == null) {
       throw StateError(
@@ -564,37 +661,71 @@ class Keycloak {
       return false;
     }
 
-    final url = endpoints!.token();
-    final response = await _httpClient.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-        'client_id': clientId,
-      },
-    );
+    final completer = Completer<bool>();
+    _refreshQueue.add(completer);
 
-    if (response.statusCode != 200) {
-      if (response.statusCode == 400) {
-        clearToken();
-      }
-      onAuthRefreshError?.call();
-      throw Exception('Failed to refresh token.');
+    if (_refreshQueue.length == 1) {
+      // First caller performs the actual refresh.
+      _performTokenRefresh();
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final timeLocal = DateTime.now().millisecondsSinceEpoch;
+    return completer.future;
+  }
 
-    setToken(
-      json['access_token'] as String,
-      json['refresh_token'] as String?,
-      json['id_token'] as String?,
-      timeLocal,
-    );
+  Future<void> _performTokenRefresh() async {
+    try {
+      final url = endpoints!.token();
+      var timeLocal = DateTime.now().millisecondsSinceEpoch;
 
-    onAuthRefreshSuccess?.call();
-    return true;
+      final response = await _httpClient.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+          'client_id': clientId,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        if (response.statusCode == 400) {
+          clearToken();
+        }
+        onAuthRefreshError?.call();
+        throw NetworkError(
+          'Failed to refresh token.',
+          statusCode: response.statusCode,
+          responseBody: response.body,
+        );
+      }
+
+      timeLocal = (timeLocal + DateTime.now().millisecondsSinceEpoch) ~/ 2;
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      setToken(
+        json['access_token'] as String,
+        json['refresh_token'] as String?,
+        json['id_token'] as String?,
+        timeLocal,
+      );
+
+      onAuthRefreshSuccess?.call();
+
+      // Resolve all queued completers.
+      final queue = List.of(_refreshQueue);
+      _refreshQueue.clear();
+      for (final c in queue) {
+        c.complete(true);
+      }
+    } catch (error) {
+      // Reject all queued completers.
+      final queue = List.of(_refreshQueue);
+      _refreshQueue.clear();
+      for (final c in queue) {
+        c.completeError(error);
+      }
+    }
   }
 
   /// Clear authentication state.
@@ -754,6 +885,291 @@ class Keycloak {
         return config.userinfoEndpoint!;
       },
     );
+  }
+
+  // Callback parsing
+
+  /// Parse an OAuth callback from a URL string.
+  ///
+  /// Returns null if the URL does not contain valid OAuth callback parameters.
+  OAuthCallbackParams? parseCallback(String url) {
+    final oauth = parseCallbackUrl(url);
+    if (oauth == null) return null;
+
+    final oauthState = _callbackStorage.get(oauth.state);
+    if (oauthState != null) {
+      return oauth.copyWith(
+        valid: true,
+        redirectUri: oauthState.redirectUri,
+        storedNonce: oauthState.nonce,
+        prompt: oauthState.prompt,
+        pkceCodeVerifier: oauthState.pkceCodeVerifier,
+        loginOptions: oauthState.loginOptions,
+      );
+    }
+
+    return oauth;
+  }
+
+  /// Parse the OAuth parameters from a callback URL.
+  OAuthCallbackParams? parseCallbackUrl(String urlString) {
+    List<String> supportedParams;
+
+    switch (flow) {
+      case KeycloakFlow.standard:
+        supportedParams = [
+          'code',
+          'state',
+          'session_state',
+          'kc_action_status',
+          'kc_action',
+          'iss',
+        ];
+        break;
+      case KeycloakFlow.implicit:
+        supportedParams = [
+          'access_token',
+          'token_type',
+          'id_token',
+          'state',
+          'session_state',
+          'expires_in',
+          'kc_action_status',
+          'kc_action',
+          'iss',
+        ];
+        break;
+      case KeycloakFlow.hybrid:
+        supportedParams = [
+          'access_token',
+          'token_type',
+          'id_token',
+          'code',
+          'state',
+          'session_state',
+          'expires_in',
+          'kc_action_status',
+          'kc_action',
+          'iss',
+        ];
+        break;
+    }
+
+    supportedParams.addAll(['error', 'error_description', 'error_uri']);
+
+    final uri = Uri.parse(urlString);
+    ParsedCallbackParams? parsed;
+    String newUrl = '';
+
+    if (responseMode == KeycloakResponseMode.query &&
+        uri.query.isNotEmpty) {
+      parsed = parseCallbackParams(uri.query, supportedParams);
+      final newUri = uri.replace(query: parsed.paramsString);
+      newUrl = newUri.toString();
+    } else if (responseMode == KeycloakResponseMode.fragment &&
+        uri.fragment.isNotEmpty) {
+      parsed = parseCallbackParams(uri.fragment, supportedParams);
+      final cleanFragment = parsed.paramsString;
+      newUrl = uri.removeFragment().toString();
+      if (cleanFragment.isNotEmpty) {
+        newUrl = '$newUrl#$cleanFragment';
+      }
+    }
+
+    if (parsed?.oauthParams != null) {
+      final p = parsed!.oauthParams;
+
+      if (flow == KeycloakFlow.standard || flow == KeycloakFlow.hybrid) {
+        if ((p.containsKey('code') || p.containsKey('error')) &&
+            p.containsKey('state')) {
+          return _oauthParamsToCallback(p, newUrl);
+        }
+      } else if (flow == KeycloakFlow.implicit) {
+        if ((p.containsKey('access_token') || p.containsKey('error')) &&
+            p.containsKey('state')) {
+          return _oauthParamsToCallback(p, newUrl);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Parse OAuth parameters from a query string or fragment.
+  static ParsedCallbackParams parseCallbackParams(
+    String paramsString,
+    List<String> supportedParams,
+  ) {
+    final params = paramsString.split('&').reversed.toList();
+    final oauthParams = <String, String>{};
+    final remaining = <String>[];
+
+    for (final param in params) {
+      if (param.isEmpty) {
+        remaining.insert(0, '');
+        continue;
+      }
+
+      final eqIdx = param.indexOf('=');
+      final key = eqIdx >= 0
+          ? Uri.decodeComponent(param.substring(0, eqIdx))
+          : param;
+      final rawValue = eqIdx >= 0 ? param.substring(eqIdx + 1) : '';
+      final value = Uri.decodeComponent(rawValue.replaceAll('+', '%20'));
+
+      if (supportedParams.contains(key) && !oauthParams.containsKey(key)) {
+        oauthParams[key] = value;
+      } else {
+        remaining.insert(0, param);
+      }
+    }
+
+    return ParsedCallbackParams(
+      paramsString: remaining.join('&'),
+      oauthParams: oauthParams,
+    );
+  }
+
+  static OAuthCallbackParams _oauthParamsToCallback(
+    Map<String, String> p,
+    String newUrl,
+  ) {
+    return OAuthCallbackParams(
+      code: p['code'],
+      error: p['error'],
+      errorDescription: p['error_description'],
+      errorUri: p['error_uri'],
+      state: p['state'],
+      sessionState: p['session_state'],
+      accessToken: p['access_token'],
+      tokenType: p['token_type'],
+      idToken: p['id_token'],
+      expiresIn: p['expires_in'],
+      kcActionStatus: p['kc_action_status'],
+      kcAction: p['kc_action'],
+      iss: p['iss'],
+      newUrl: newUrl,
+    );
+  }
+
+  /// Process a parsed OAuth callback, exchanging codes for tokens.
+  Future<void> processCallback(OAuthCallbackParams oauth) async {
+    final code = oauth.code;
+    final error = oauth.error;
+    final prompt = oauth.prompt;
+    var timeLocal = DateTime.now().millisecondsSinceEpoch;
+
+    void authSuccess(String accessToken, String? refreshTkn, String? idTkn) {
+      timeLocal = (timeLocal + DateTime.now().millisecondsSinceEpoch) ~/ 2;
+
+      setToken(accessToken, refreshTkn, idTkn, timeLocal);
+
+      if (_useNonce &&
+          idTokenParsed != null &&
+          idTokenParsed!.nonce != oauth.storedNonce) {
+        _logInfo('Invalid nonce, clearing token');
+        clearToken();
+        throw StateError('Invalid nonce.');
+      }
+    }
+
+    if (oauth.kcActionStatus != null) {
+      onActionUpdate?.call(oauth.kcActionStatus!, oauth.kcAction);
+    }
+
+    if (error != null) {
+      if (prompt != 'none') {
+        if (oauth.errorDescription == 'authentication_expired') {
+          await login(oauth.loginOptions);
+        } else {
+          final errorData = KeycloakError(
+            error: error,
+            errorDescription: oauth.errorDescription ?? '',
+          );
+          onAuthError?.call(errorData);
+          throw errorData;
+        }
+      }
+      return;
+    } else if (flow != KeycloakFlow.standard &&
+        (oauth.accessToken != null || oauth.idToken != null)) {
+      authSuccess(oauth.accessToken!, null, oauth.idToken);
+      onAuthSuccess?.call();
+    }
+
+    if (flow != KeycloakFlow.implicit && code != null) {
+      try {
+        final response = await fetchAccessToken(
+          endpoints!.token(),
+          code,
+          clientId!,
+          oauth.redirectUri ?? '',
+          oauth.pkceCodeVerifier,
+        );
+
+        authSuccess(
+          response['access_token'] as String,
+          response['refresh_token'] as String?,
+          response['id_token'] as String?,
+        );
+
+        if (flow == KeycloakFlow.standard) {
+          onAuthSuccess?.call();
+        }
+      } catch (e) {
+        onAuthError?.call(null);
+        rethrow;
+      }
+    }
+  }
+
+  /// Exchange an authorization code for tokens at the token endpoint.
+  Future<Map<String, dynamic>> fetchAccessToken(
+    String tokenUrl,
+    String code,
+    String clientId,
+    String redirectUri, [
+    String? pkceCodeVerifier,
+  ]) async {
+    final body = <String, String>{
+      'grant_type': 'authorization_code',
+      'code': code,
+      'client_id': clientId,
+      'redirect_uri': redirectUri,
+    };
+
+    if (pkceCodeVerifier != null) {
+      body['code_verifier'] = pkceCodeVerifier;
+    }
+
+    final response = await _httpClient.post(
+      Uri.parse(tokenUrl),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      throw NetworkError(
+        'Failed to exchange authorization code.',
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Build an authorization header value from the current token.
+  String? buildAuthorizationHeader() {
+    if (token == null) return null;
+    return 'Bearer $token';
+  }
+
+  void _logInfo(String message) {
+    if (enableLogging) {
+      // ignore: avoid_print
+      print('[KEYCLOAK] $message');
+    }
   }
 
   // Utility functions
